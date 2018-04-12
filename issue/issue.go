@@ -7,12 +7,30 @@ import (
 
 var NO_ARGS = H{}
 
+// A Code is a unique string representation of an issue. It should be all uppercase
+// and words must be separated by underscores, not spaces.
+// Since all issues live in the same global namespace, it's recommended that the
+// code is prefixed with a package name.
+//
+// Example:
+//
+// const EVAL_UNKNOWN_FUNCTION = `EVAL_UNKNOWN_FUNCTION`
+//
 type Code string
 
+// An ArgFormatter function, provided to the Issue constructors via the HF map, is
+// responsible for formatting a named argument in the format string before the final
+// formatting takes place.
+//
+// Typical formatters are A_an or A_anUc. Both will prefix the named argument
+// with an article. The difference between the two is that A_anUc uses a capitalized
+// article.
 type ArgFormatter func(value interface{}) string
 
+// A HF is used for passing ArgFormatters to an Issue constructor
 type HF map[string]ArgFormatter
 
+// An Issue is a formal description of a warning or an error.
 type Issue interface {
 	// ArgFormatters returns the argument formatters or nil if no such
 	// formatters exists
@@ -41,19 +59,25 @@ type issue struct {
 
 var issues = map[Code]*issue{}
 
+// Hard creates a non-demotable Issue with the given code and messageFormat
 func Hard(code Code, messageFormat string) Issue {
 	return addIssue(code, messageFormat, false, nil)
 }
 
-func Hard2(code Code, messageFormat string, argFormats HF) Issue {
-	return addIssue(code, messageFormat, false, argFormats)
+// Hard2 creates a non-demotable Issue with the given code, messageFormat, and
+// argFormatters map.
+func Hard2(code Code, messageFormat string, argFormatters HF) Issue {
+	return addIssue(code, messageFormat, false, argFormatters)
 }
 
-func SoftIssue(code Code, messageFormat string) Issue {
+// Hard creates a demotable Issue with the given code and messageFormat
+func Soft(code Code, messageFormat string) Issue {
 	return addIssue(code, messageFormat, true, nil)
 }
 
-func SoftIssue2(code Code, messageFormat string, argFormats HF) Issue {
+// Soft2 creates a demotable Issue with the given code, messageFormat, and
+// argFormatters map.
+func Soft2(code Code, messageFormat string, argFormats HF) Issue {
 	return addIssue(code, messageFormat, true, argFormats)
 }
 
@@ -90,12 +114,6 @@ func (issue *issue) Format(b *bytes.Buffer, arguments H) {
 	MapFprintf(b, issue.MessageFormat(), args)
 }
 
-func addIssue(code Code, messageFormat string, demotable bool, argFormats HF) Issue {
-	dsc := &issue{code, messageFormat, argFormats, demotable}
-	issues[code] = dsc
-	return dsc
-}
-
 // Returns the Issue for a Code. Will panic if the given code does not represent
 // an existing issue
 func IssueForCode(code Code) Issue {
@@ -105,7 +123,24 @@ func IssueForCode(code Code) Issue {
 	panic(fmt.Sprintf("internal error: no issue found for issue code '%s'", code))
 }
 
+// Returns the Issue for a Code together with a bool indicating if the issue was
+// found or not
 func IssueForCode2(code Code) (dsc Issue, ok bool) {
 	dsc, ok = issues[code]
 	return
+}
+
+func addIssue(code Code, messageFormat string, demotable bool, argFormats HF) Issue {
+	dsc := &issue{code, messageFormat, argFormats, demotable}
+	issues[code] = dsc
+	return dsc
+}
+
+func withIssues(example func()) {
+	savedIssues := issues
+	defer func() {
+		issues = savedIssues
+	}()
+	issues = map[Code]*issue{}
+	example()
 }
