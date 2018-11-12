@@ -35,6 +35,26 @@ func CamelToSnakeCase(name string) string {
 	return b.String()
 }
 
+// SnakeToCamelCase converts a snake cased name like "name_is_bob" to
+// its corresponding camel cased "NameIsBob"
+func SnakeToCamelCase(name string) string {
+	b := bytes.NewBufferString(``)
+
+	nextUpper := true
+	for _, c := range name {
+		if c == '_' {
+			nextUpper = true
+			continue
+		}
+		if nextUpper {
+			c = unicode.ToUpper(c)
+			nextUpper = false
+		}
+		b.WriteRune(c)
+	}
+	return b.String()
+}
+
 // Article returns the non capitalized article for the given string
 func Article(s string) string {
 	if s == `` {
