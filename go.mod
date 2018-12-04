@@ -1,1 +1,1 @@
-module github.com/puppetlabs/go-issues
+module github.com/lyraproj/issue
