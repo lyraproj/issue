@@ -1,9 +1,9 @@
 package issue
 
 import (
-	"testing"
-	"os"
 	"fmt"
+	"os"
+	"testing"
 )
 
 func assertEqual(t *testing.T, e, a interface{}) {
@@ -39,5 +39,5 @@ func ExampleMapFprintf_missingKey() {
 		}
 	}()
 	MapFprintf(os.Stdout, "%{foo} %{fee} %{fum}", H{"foo": "hello", "fum": "world"})
-	// Output: missing argument matching key {fee} in format string %{foo} %{fee} %{fum}
+	// Output: hello %!{fee}(MISSING) world
 }
