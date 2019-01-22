@@ -41,12 +41,14 @@ func MapFprintf(writer io.Writer, formatString string, args H) {
 	posFormatString, argCount, expectedArgs := extractNamesAndLocations(formatString)
 	posArgs := make([]interface{}, argCount)
 	for k, v := range expectedArgs {
+		var a interface{}
 		if arg, ok := args[k]; ok {
-			for _, pos := range v {
-				posArgs[pos] = arg
-			}
+			a = arg
 		} else {
-			panic(fmt.Sprintf(`missing argument matching key {%s} in format string %s`, k, formatString))
+			a = fmt.Sprintf(`%%!{%s}(MISSING)`, k)
+		}
+		for _, pos := range v {
+			posArgs[pos] = a
 		}
 	}
 	fmt.Fprintf(writer, posFormatString, posArgs...)
