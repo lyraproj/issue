@@ -2,19 +2,19 @@ package issue
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 	"unicode"
-	"fmt"
 )
 
-// A_an returns the non capitalized article for the label of the given argument
-func A_an(e interface{}) string {
+// AnOrA returns the non capitalized article for the label of the given argument
+func AnOrA(e interface{}) string {
 	label := Label(e)
 	return fmt.Sprintf(`%s %s`, Article(label), label)
 }
 
-// A_anUc returns the capitalized article for the label of the given argument
-func A_anUc(e interface{}) string {
+// UcAnOrA returns the capitalized article for the label of the given argument
+func UcAnOrA(e interface{}) string {
 	label := Label(e)
 	return fmt.Sprintf(`%s %s`, ArticleUc(label), label)
 }
@@ -23,15 +23,52 @@ func A_anUc(e interface{}) string {
 // its corresponding snake cased "name_is_bob"
 func CamelToSnakeCase(name string) string {
 	b := bytes.NewBufferString(``)
-	for i, c := range name {
-		if unicode.IsUpper(c) {
-			if i > 0 {
+	leadIn := true
+	mlUpper := false
+	var p rune = -1
+	for _, c := range name {
+		if leadIn && c == '_' {
+			b.WriteByte('_')
+			continue
+		}
+		r := c
+		if unicode.IsUpper(r) {
+			mlUpper = unicode.IsUpper(p)
+			if !(leadIn || p == '_' || mlUpper) {
 				b.WriteByte('_')
 			}
-			b.WriteRune(unicode.ToLower(c))
-		} else {
-			b.WriteRune(c)
+			r = unicode.ToLower(r)
+		} else if mlUpper {
+			mlUpper = false
+			if !(leadIn || r == '_') {
+				b.WriteByte('_')
+			}
 		}
+		b.WriteRune(r)
+		p = c
+		leadIn = false
+	}
+	return b.String()
+}
+
+// FirstToLower ensures that the first character in a name like "NameIsBob" is lowercase. Leading
+//// underscore characters are left as is.
+func FirstToLower(name string) string {
+	b := bytes.NewBufferString(``)
+
+	firstChar := true
+	for _, c := range name {
+		if c == '_' {
+			b.WriteRune(c)
+			if firstChar {
+				continue
+			}
+		}
+		if firstChar {
+			c = unicode.ToLower(c)
+			firstChar = false
+		}
+		b.WriteRune(c)
 	}
 	return b.String()
 }
@@ -39,12 +76,27 @@ func CamelToSnakeCase(name string) string {
 // SnakeToCamelCase converts a snake cased name like "name_is_bob" to
 // its corresponding camel cased "NameIsBob"
 func SnakeToCamelCase(name string) string {
+	return snakeToCamelCase(name, true)
+}
+
+// SnakeToCamelCaseDC converts a snake cased name like "name_is_bob" to
+// its corresponding camel cased de-capitalized name "nameIsBob". Leading
+// underscore characters are left as is.
+func SnakeToCamelCaseDC(name string) string {
+	return snakeToCamelCase(name, false)
+}
+
+func snakeToCamelCase(name string, nextUpper bool) string {
 	b := bytes.NewBufferString(``)
 
-	nextUpper := true
+	nonUnderscorePrefix := true
 	for _, c := range name {
 		if c == '_' {
-			nextUpper = true
+			if nonUnderscorePrefix {
+				b.WriteRune(c)
+			} else {
+				nextUpper = true
+			}
 			continue
 		}
 		if nextUpper {
@@ -52,6 +104,7 @@ func SnakeToCamelCase(name string) string {
 			nextUpper = false
 		}
 		b.WriteRune(c)
+		nonUnderscorePrefix = false
 	}
 	return b.String()
 }
@@ -82,11 +135,37 @@ func ArticleUc(s string) string {
 	}
 }
 
+// JoinErrors joins a set of errors into a string using newline separators. The argument
+// can be a Result, a Reported, an error, a string, or a slice of Reported, error, or string,
 func JoinErrors(e interface{}) string {
 	b := bytes.NewBufferString(``)
-	for _, error := range e.([]Reported) {
-		b.WriteString("\n")
-		error.ErrorTo(b)
+	switch e.(type) {
+	case Result:
+		for _, err := range e.(Result).Issues() {
+			b.WriteString("\n")
+			err.ErrorTo(b)
+		}
+	case []Reported:
+		for _, err := range e.([]Reported) {
+			b.WriteString("\n")
+			err.ErrorTo(b)
+		}
+	case []error:
+		for _, err := range e.([]error) {
+			b.WriteString("\n")
+			b.WriteString(err.Error())
+		}
+	case []string:
+		for _, err := range e.([]string) {
+			b.WriteString("\n")
+			b.WriteString(err)
+		}
+	case Reported:
+		e.(Reported).ErrorTo(b)
+	case error:
+		b.WriteString(e.(error).Error())
+	case string:
+		b.WriteString(e.(string))
 	}
 	return b.String()
 }

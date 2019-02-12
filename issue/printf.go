@@ -31,13 +31,22 @@ func (r *stringReader) next() rune {
 	return c
 }
 
+// MapSprintf calls MapFprintf with a string Buffer and returns string that is output to that buffer
 func MapSprintf(formatString string, args H) string {
 	b := bytes.NewBufferString(``)
-	MapFprintf(b, formatString, args)
+	_, err := MapFprintf(b, formatString, args)
+	if err != nil {
+		panic(err)
+	}
 	return b.String()
 }
 
-func MapFprintf(writer io.Writer, formatString string, args H) {
+// MapFprintf is like fmt.Fprintf but it allows named arguments and it assumes a map as the arguments
+// that follow the format string.
+//
+// The notation %{name} maps to the 'name' key of the map and uses the default format (%v)
+// The notation %<name>2.2s maps to the 'name' key of the map and uses the %2.2s format.
+func MapFprintf(writer io.Writer, formatString string, args H) (int, error) {
 	posFormatString, argCount, expectedArgs := extractNamesAndLocations(formatString)
 	posArgs := make([]interface{}, argCount)
 	for k, v := range expectedArgs {
@@ -51,7 +60,7 @@ func MapFprintf(writer io.Writer, formatString string, args H) {
 			posArgs[pos] = a
 		}
 	}
-	fmt.Fprintf(writer, posFormatString, posArgs...)
+	return fmt.Fprintf(writer, posFormatString, posArgs...)
 }
 
 func extractNamesAndLocations(formatString string) (string, int, map[string][]int) {

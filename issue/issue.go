@@ -1,8 +1,8 @@
 package issue
 
 import (
-	"fmt"
 	"bytes"
+	"fmt"
 )
 
 var NO_ARGS = H{}
@@ -22,8 +22,8 @@ type Code string
 // responsible for formatting a named argument in the format string before the final
 // formatting takes place.
 //
-// Typical formatters are A_an or A_anUc. Both will prefix the named argument
-// with an article. The difference between the two is that A_anUc uses a capitalized
+// Typical formatters are AnOrA or UcAnOrA. Both will prefix the named argument
+// with an article. The difference between the two is that UcAnOrA uses a capitalized
 // article.
 type ArgFormatter func(value interface{}) string
 

@@ -17,6 +17,11 @@ func ExampleFprintf() {
 	// Output: hello great world
 }
 
+func ExampleSprintf() {
+	fmt.Print(MapSprintf("%{foo} %{fee} %{fum}\n", H{"foo": "hello", "fee": "great", "fum": "world"}))
+	// Output: hello great world
+}
+
 func ExampleFprintf_ignoredFlags() {
 	MapFprintf(os.Stdout, "%{foo}4d, %{foo}o, %{foo}X", H{"foo": 23})
 	// Output: 234d, 23o, 23X

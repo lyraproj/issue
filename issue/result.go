@@ -16,6 +16,7 @@ type (
 	}
 )
 
+// NewResult creates a Result from a slice of Reported
 func NewResult(issues []Reported) Result {
 	return &result{issues}
 }
