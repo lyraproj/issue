@@ -12,10 +12,12 @@ func ExampleA_an() {
 
 func ExampleFirstToLower() {
 	fmt.Println(FirstToLower(`MyNameIsBob`))
+	fmt.Println(FirstToLower(`MyNameIs_Bob`))
 	fmt.Println(FirstToLower(`_MyNameIsBob`))
 	fmt.Println(FirstToLower(`__MyNameIsBob`))
 	// Output:
 	// myNameIsBob
+	// myNameIs_Bob
 	// _myNameIsBob
 	// __myNameIsBob
 }

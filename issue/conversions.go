@@ -59,10 +59,9 @@ func FirstToLower(name string) string {
 	firstChar := true
 	for _, c := range name {
 		if c == '_' {
+			// Don't alter firstChar status
 			b.WriteRune(c)
-			if firstChar {
-				continue
-			}
+			continue
 		}
 		if firstChar {
 			c = unicode.ToLower(c)
