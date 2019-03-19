@@ -23,7 +23,7 @@ func NewResult(issues []Reported) Result {
 
 func (pr *result) Error() bool {
 	for _, i := range pr.issues {
-		if i.Severity() == SEVERITY_ERROR {
+		if i.Severity() == SeverityError {
 			return true
 		}
 	}

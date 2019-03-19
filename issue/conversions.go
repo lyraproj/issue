@@ -138,33 +138,33 @@ func ArticleUc(s string) string {
 // can be a Result, a Reported, an error, a string, or a slice of Reported, error, or string,
 func JoinErrors(e interface{}) string {
 	b := bytes.NewBufferString(``)
-	switch e.(type) {
+	switch e := e.(type) {
 	case Result:
-		for _, err := range e.(Result).Issues() {
+		for _, err := range e.Issues() {
 			b.WriteString("\n")
 			err.ErrorTo(b)
 		}
 	case []Reported:
-		for _, err := range e.([]Reported) {
+		for _, err := range e {
 			b.WriteString("\n")
 			err.ErrorTo(b)
 		}
 	case []error:
-		for _, err := range e.([]error) {
+		for _, err := range e {
 			b.WriteString("\n")
 			b.WriteString(err.Error())
 		}
 	case []string:
-		for _, err := range e.([]string) {
+		for _, err := range e {
 			b.WriteString("\n")
 			b.WriteString(err)
 		}
 	case Reported:
-		e.(Reported).ErrorTo(b)
+		e.ErrorTo(b)
 	case error:
-		b.WriteString(e.(error).Error())
+		b.WriteString(e.Error())
 	case string:
-		b.WriteString(e.(string))
+		b.WriteString(e)
 	}
 	return b.String()
 }

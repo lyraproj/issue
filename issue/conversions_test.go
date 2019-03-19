@@ -2,7 +2,7 @@ package issue
 
 import "fmt"
 
-func ExampleA_an() {
+func ExampleAnOrA() {
 	fmt.Println(AnOrA(`string`))
 	fmt.Println(AnOrA(`integer`))
 	// Output:
@@ -35,14 +35,14 @@ func ExampleCamelToSnakeCase() {
 	fmt.Println(CamelToSnakeCase(`_MyNameIsBob`))
 	fmt.Println(CamelToSnakeCase(`__MyNameIsBob`))
 	fmt.Println(CamelToSnakeCase(`SomeID`))
-	fmt.Println(CamelToSnakeCase(`SomeIDsomething`))
+	fmt.Println(CamelToSnakeCase(`SomeIDrum`))
 	fmt.Println(CamelToSnakeCase(`SomeID_OfSomething`))
 	// Output:
 	// my_name_is_bob
 	// _my_name_is_bob
 	// __my_name_is_bob
 	// some_id
-	// some_id_something
+	// some_id_rum
 	// some_id_of_something
 }
 
