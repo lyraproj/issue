@@ -55,9 +55,12 @@ func IncludeStacktrace(flag bool) {
 	includeStacktrace = flag
 }
 
+// NewReported creates a new instance of the Reported error with a given Code, Severity, and argument hash. The
+// locOrSkip must either be nil, a Location, or an int denoting the number of frames to skip in a stacktrace,
+// counting form the caller of NewReported.
 func NewReported(code Code, severity Severity, args H, locOrSkip interface{}) Reported {
 	var location Location
-	skip := 2 // Default is to skip runtime.Callers and this function only
+	skip := 0
 	switch locOrSkip := locOrSkip.(type) {
 	case int:
 		skip = locOrSkip
@@ -65,11 +68,12 @@ func NewReported(code Code, severity Severity, args H, locOrSkip interface{}) Re
 		location = locOrSkip
 	}
 
+	skip += 2 // Always skip runtime.Callers and this function
 	r := &reported{code, severity, args, location, nil}
 	if includeStacktrace {
 		// Ask runtime.Callers for up to 100 pcs, including runtime.Callers itself.
 		pc := make([]uintptr, 100)
-		n := runtime.Callers(skip, pc)
+		n := runtime.Callers(skip+2, pc)
 		if n > 0 {
 			pc = pc[:n] // pass only valid pcs to runtime.CallersFrames
 			frames := runtime.CallersFrames(pc)
@@ -90,9 +94,11 @@ func NewReported(code Code, severity Severity, args H, locOrSkip interface{}) Re
 
 	if r.location == nil {
 		if r.stack == nil {
+			// Use first caller we can find with regards to given skip and use it
+			// as the location
 			for {
-				// Use first caller we can find with regards to given skip and use it
-				// as the location
+				// Start by decrementing to even out the different interpretations of skip between runtime.Caller
+				// and runtime.Callers
 				skip--
 				if _, f, l, ok := runtime.Caller(skip); ok {
 					r.location = NewLocation(f, l, 0)
