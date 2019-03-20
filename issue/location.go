@@ -2,9 +2,8 @@ package issue
 
 import (
 	"bytes"
-	"fmt"
+	"strconv"
 )
-
 
 type Location interface {
 	File() string
@@ -67,9 +66,11 @@ func appendLocation(b *bytes.Buffer, location Location) {
 		}
 	}
 	if line > 0 {
-		fmt.Fprintf(b, `line: %d`, line)
+		b.WriteString(`line: `)
+		b.WriteString(strconv.Itoa(line))
 		if pos > 0 {
-			fmt.Fprintf(b, `, column: %d`, pos)
+			b.WriteString(`, column: `)
+			b.WriteString(strconv.Itoa(pos))
 		}
 	}
 	b.WriteByte(')')

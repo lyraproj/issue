@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-var NO_ARGS = H{}
+var NoArgs = H{}
 
 // A Code is a unique string representation of an issue. It should be all uppercase
 // and words must be separated by underscores, not spaces.
@@ -111,12 +111,12 @@ func (issue *issue) Format(b *bytes.Buffer, arguments H) {
 	} else {
 		args = arguments
 	}
-	MapFprintf(b, issue.MessageFormat(), args)
+	_, _ = MapFprintf(b, issue.MessageFormat(), args)
 }
 
 // Returns the Issue for a Code. Will panic if the given code does not represent
 // an existing issue
-func IssueForCode(code Code) Issue {
+func ForCode(code Code) Issue {
 	if dsc, ok := issues[code]; ok {
 		return dsc
 	}
@@ -125,7 +125,7 @@ func IssueForCode(code Code) Issue {
 
 // Returns the Issue for a Code together with a bool indicating if the issue was
 // found or not
-func IssueForCode2(code Code) (dsc Issue, ok bool) {
+func ForCode2(code Code) (dsc Issue, ok bool) {
 	dsc, ok = issues[code]
 	return
 }

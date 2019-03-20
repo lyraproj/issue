@@ -135,7 +135,7 @@ func (ri *reported) Error() (str string) {
 }
 
 func (ri *reported) ErrorTo(b *bytes.Buffer) {
-	IssueForCode(ri.issueCode).Format(b, ri.args)
+	ForCode(ri.issueCode).Format(b, ri.args)
 	if ri.stack != nil {
 		for _, f := range ri.stack {
 			b.WriteString("\n at ")
