@@ -73,7 +73,7 @@ func NewReported(code Code, severity Severity, args H, locOrSkip interface{}) Re
 	if includeStacktrace {
 		// Ask runtime.Callers for up to 100 pcs, including runtime.Callers itself.
 		pc := make([]uintptr, 100)
-		n := runtime.Callers(skip+2, pc)
+		n := runtime.Callers(skip, pc)
 		if n > 0 {
 			pc = pc[:n] // pass only valid pcs to runtime.CallersFrames
 			frames := runtime.CallersFrames(pc)
