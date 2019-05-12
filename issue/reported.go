@@ -2,7 +2,9 @@ package issue
 
 import (
 	"bytes"
+	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 )
 
@@ -15,8 +17,14 @@ type Reported interface {
 	// such argument exists
 	Argument(key string) interface{}
 
+	// Keys returns the list of argument keys
+	Keys() []string
+
 	// Code returns the issue code
 	Code() Code
+
+	// Cause returns the cause of this Reported issue, if any.
+	Cause() error
 
 	// Error produces a string from the receives issue and arguments
 	Error() string
@@ -33,6 +41,10 @@ type Reported interface {
 	// source is embedded in a another file.
 	OffsetByLocation(location Location) Reported
 
+	// WithLocation returns a copy of the receiver where the location has
+	// been overwritten by the argument
+	WithLocation(location Location) Reported
+
 	// Severity returns the severity
 	Severity() Severity
 
@@ -46,6 +58,7 @@ type reported struct {
 	args      H
 	location  Location
 	stack     []runtime.Frame
+	cause     error
 }
 
 var includeStacktrace = false
@@ -55,10 +68,31 @@ func IncludeStacktrace(flag bool) {
 	includeStacktrace = flag
 }
 
-// NewReported creates a new instance of the Reported error with a given Code, Severity, and argument hash. The
+// ErrorWithoutStack creates a new instance of the Reported based on code, arguments, and location. It
+// does not add a stack trace.
+//
+// This constructor is mainly intended for errors that are propagated from an external executable and a
+// local stack trace would not make sense.
+func ErrorWithoutStack(code Code, args H, location Location, cause error) Reported {
+	return &reported{code, SeverityError, args, location, nil, cause}
+}
+
+// NewNested creates a new instance of the Reported error with a given Code,  argument hash, and nested error.
+// The  locOrSkip must either be nil, a Location, or an int denoting the number of frames to skip in a stacktrace,
+// counting from the caller of NewNested.
+func NewNested(code Code, args H, locOrSkip interface{}, cause error) Reported {
+	return newReported(code, SeverityError, args, locOrSkip, cause)
+}
+
+// NewReported creates a new instance of the Reported with a given Code, Severity, and argument hash. The
 // locOrSkip must either be nil, a Location, or an int denoting the number of frames to skip in a stacktrace,
-// counting form the caller of NewReported.
+// counting from the caller of NewReported.
 func NewReported(code Code, severity Severity, args H, locOrSkip interface{}) Reported {
+	return newReported(code, severity, args, locOrSkip, nil)
+}
+
+func newReported(code Code, severity Severity, args H, locOrSkip interface{}, cause error) Reported {
+
 	var location Location
 	skip := 0
 	switch locOrSkip := locOrSkip.(type) {
@@ -68,8 +102,8 @@ func NewReported(code Code, severity Severity, args H, locOrSkip interface{}) Re
 		location = locOrSkip
 	}
 
-	skip += 2 // Always skip runtime.Callers and this function
-	r := &reported{code, severity, args, location, nil}
+	skip += 3 // Always skip runtime.Callers and this function
+	r := &reported{code, severity, args, location, nil, cause}
 	if includeStacktrace {
 		// Ask runtime.Callers for up to 100 pcs, including runtime.Callers itself.
 		pc := make([]uintptr, 100)
@@ -118,6 +152,15 @@ func (ri *reported) Argument(key string) interface{} {
 	return ri.args[key]
 }
 
+func (ri *reported) Keys() []string {
+	keys := make([]string, 0, len(ri.args))
+	for k := range ri.args {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func (ri *reported) OffsetByLocation(location Location) Reported {
 	loc := ri.location
 	if loc == nil {
@@ -125,7 +168,11 @@ func (ri *reported) OffsetByLocation(location Location) Reported {
 	} else {
 		loc = NewLocation(location.File(), location.Line()+loc.Line(), location.Pos())
 	}
-	return &reported{ri.issueCode, ri.severity, ri.args, loc, ri.stack}
+	return &reported{ri.issueCode, ri.severity, ri.args, loc, ri.stack, ri.cause}
+}
+
+func (ri *reported) WithLocation(location Location) Reported {
+	return &reported{ri.issueCode, ri.severity, ri.args, location, ri.stack, ri.cause}
 }
 
 func (ri *reported) Error() (str string) {
@@ -134,8 +181,16 @@ func (ri *reported) Error() (str string) {
 	return b.String()
 }
 
+var hasLocationPattern = regexp.MustCompile(`[^\w]file:\s+|[^\w]line:\s+`)
+
 func (ri *reported) ErrorTo(b *bytes.Buffer) {
 	ForCode(ri.issueCode).Format(b, ri.args)
+	if ri.location != nil {
+		if !hasLocationPattern.MatchString(b.String()) {
+			b.WriteByte(' ')
+			appendLocation(b, ri.location)
+		}
+	}
 	if ri.stack != nil {
 		for _, f := range ri.stack {
 			b.WriteString("\n at ")
@@ -148,10 +203,15 @@ func (ri *reported) ErrorTo(b *bytes.Buffer) {
 				b.WriteByte(')')
 			}
 		}
-	} else if ri.location != nil {
-		b.WriteByte(' ')
-		appendLocation(b, ri.location)
 	}
+	if ri.cause != nil {
+		b.WriteString("\nCaused by: ")
+		b.WriteString(ri.cause.Error())
+	}
+}
+
+func (ri *reported) Cause() error {
+	return ri.cause
 }
 
 func (ri *reported) Location() Location {
