@@ -2,6 +2,7 @@ package issue
 
 import (
 	"bytes"
+	"regexp"
 	"strconv"
 )
 
@@ -26,6 +27,24 @@ type location struct {
 
 func NewLocation(file string, line, pos int) Location {
 	return &location{file, line, pos}
+}
+
+var locationPattern = regexp.MustCompile(`^\((?:file:\s*(.+?),?,?)?(?:(?:\s*line:\s*([0-9]+))(?:,\s*column:\s*([0-9]+))?)?\)$`)
+
+func ParseLocation(loc string) Location {
+	if parts := locationPattern.FindStringSubmatch(loc); parts != nil {
+		file := parts[1]
+		line := 0
+		if ls := parts[2]; ls != `` {
+			line, _ = strconv.Atoi(ls)
+		}
+		pos := 0
+		if ps := parts[3]; ps != `` {
+			pos, _ = strconv.Atoi(ps)
+		}
+		return &location{file, line, pos}
+	}
+	return &location{loc, 0, 0}
 }
 
 func (l *location) File() string {
