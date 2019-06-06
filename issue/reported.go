@@ -48,6 +48,10 @@ type Reported interface {
 	// Severity returns the severity
 	Severity() Severity
 
+	// Stack returns the formatted stack trace of the error or an empty string if
+	// stack traces where not enabled using IncludeStackTrace()
+	Stack() string
+
 	// String is an alias for Error
 	String() string
 }
@@ -57,7 +61,7 @@ type reported struct {
 	severity  Severity
 	args      H
 	location  Location
-	stack     []runtime.Frame
+	stack     string
 	cause     error
 }
 
@@ -73,8 +77,13 @@ func IncludeStacktrace(flag bool) {
 //
 // This constructor is mainly intended for errors that are propagated from an external executable and a
 // local stack trace would not make sense.
+func ErrorWithStack(code Code, args H, location Location, cause error, stack string) Reported {
+	return &reported{code, SeverityError, args, location, stack, cause}
+}
+
+// ErrorWithoutStack is deprecated and will be removed in future versions of the code
 func ErrorWithoutStack(code Code, args H, location Location, cause error) Reported {
-	return &reported{code, SeverityError, args, location, nil, cause}
+	return ErrorWithStack(code, args, location, cause, ``)
 }
 
 // NewNested creates a new instance of the Reported error with a given Code,  argument hash, and nested error.
@@ -103,7 +112,10 @@ func newReported(code Code, severity Severity, args H, locOrSkip interface{}, ca
 	}
 
 	skip += 3 // Always skip runtime.Callers and this function
-	r := &reported{code, severity, args, location, nil, cause}
+	r := &reported{code, severity, args, location, ``, cause}
+
+	var topFrame *runtime.Frame
+
 	if includeStacktrace {
 		// Ask runtime.Callers for up to 100 pcs, including runtime.Callers itself.
 		pc := make([]uintptr, 100)
@@ -111,23 +123,34 @@ func newReported(code Code, severity Severity, args H, locOrSkip interface{}, ca
 		if n > 0 {
 			pc = pc[:n] // pass only valid pcs to runtime.CallersFrames
 			frames := runtime.CallersFrames(pc)
-			stack := make([]runtime.Frame, 0, n)
 
 			// Loop to get frames.
 			// A fixed number of pcs can expand to an indefinite number of Frames.
+			b := bytes.NewBufferString(``)
 			for {
-				if frame, more := frames.Next(); more {
-					stack = append(stack, frame)
+				if f, more := frames.Next(); more {
+					if topFrame == nil {
+						topFrame = &f
+					}
+					b.WriteString("\n at ")
+					b.WriteString(f.File)
+					b.WriteByte(':')
+					b.WriteString(strconv.Itoa(f.Line))
+					if f.Function != `` {
+						b.WriteString(" (")
+						b.WriteString(f.Function)
+						b.WriteByte(')')
+					}
 				} else {
 					break
 				}
 			}
-			r.stack = stack
+			r.stack = b.String()
 		}
 	}
 
 	if r.location == nil {
-		if r.stack == nil {
+		if topFrame == nil {
 			// Use first caller we can find with regards to given skip and use it
 			// as the location
 			for {
@@ -141,8 +164,7 @@ func newReported(code Code, severity Severity, args H, locOrSkip interface{}, ca
 			}
 		} else {
 			// Set location to first stack entry
-			tf := r.stack[0]
-			r.location = NewLocation(tf.File, tf.Line, 0)
+			r.location = NewLocation(topFrame.File, topFrame.Line, 0)
 		}
 	}
 	return r
@@ -191,19 +213,7 @@ func (ri *reported) ErrorTo(b *bytes.Buffer) {
 			appendLocation(b, ri.location)
 		}
 	}
-	if ri.stack != nil {
-		for _, f := range ri.stack {
-			b.WriteString("\n at ")
-			b.WriteString(f.File)
-			b.WriteByte(':')
-			b.WriteString(strconv.Itoa(f.Line))
-			if f.Function != `` {
-				b.WriteString(" (")
-				b.WriteString(f.Function)
-				b.WriteByte(')')
-			}
-		}
-	}
+	b.WriteString(ri.stack)
 	if ri.cause != nil {
 		b.WriteString("\nCaused by: ")
 		b.WriteString(ri.cause.Error())
@@ -218,7 +228,11 @@ func (ri *reported) Location() Location {
 	return ri.location
 }
 
-func (ri *reported) String() (str string) {
+func (ri *reported) Stack() string {
+	return ri.stack
+}
+
+func (ri *reported) String() string {
 	return ri.Error()
 }
 
